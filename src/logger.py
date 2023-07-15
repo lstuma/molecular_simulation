@@ -19,4 +19,4 @@ prefix = {
 
 
 def log(msg, level="info", end="\n", begin=""):
-    print(begin+colors[level]+prefix[level]+"\t\033[;37m|\033[0;0m "+msg, end=end)
+    print(begin+colors[level]+prefix[level]+"\t\033[;37m|\033[0;0m "+msg+"\033[0;0m", end=end)

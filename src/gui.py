@@ -54,7 +54,7 @@ def gui():
     global randomize_switch_label
     randomize_switch_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="RANDOMIZE POSITIONS", font=ctk.CTkFont(family="Tahoma", weight="bold"))
     randomize_switch_label.place(x=320, y=80)
-    
+
     simulation_scale_slider = ctk.CTkSlider(master=main_frame, width=300, height=20, number_of_steps=30, command=simulation_scale_slider_callback, from_=1, to=30)
     simulation_scale_slider.place(x=20, y=110)
     simulation_scale_slider.set(15)
@@ -69,13 +69,20 @@ def gui():
     simulation_radius_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="SIMULATION RADIUS [289]", font=ctk.CTkFont(family="Tahoma", weight="bold"))
     simulation_radius_label.place(x=320, y=140)
     
+    global fixed_deltatime_switch
+    fixed_deltatime_switch = ctk.CTkSwitch(master=main_frame, width=300, height=20, text="", switch_height=20, switch_width=80)
+    fixed_deltatime_switch.place(x=240, y=170)
+    fixed_deltatime_switch.select(1)
+    global fixed_deltatime_label
+    fixed_deltatime_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="FIXED DELTATIME", font=ctk.CTkFont(family="Tahoma", weight="bold"))
+    fixed_deltatime_label.place(x=320, y=170)
     
     # run app
     window.mainloop()
     
 def run_simulation_callback():
-    global fixed_update_interval, slow_fixed_update_interval, randomize_switch
-    simulator.main(interval=fixed_update_interval, slow_interval=slow_fixed_update_interval, randomize=randomize_switch.get())
+    global fixed_update_interval, slow_fixed_update_interval, randomize_switch, fixed_deltatime_switch
+    simulator.main(interval=fixed_update_interval, slow_interval=slow_fixed_update_interval, randomize=randomize_switch.get(), fixed_deltatime=fixed_deltatime_switch.get())
     
 def simulation_scale_slider_callback(value):
     simulator.scale_multiplier = round(value)
