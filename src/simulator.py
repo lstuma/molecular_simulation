@@ -12,7 +12,7 @@ molecule_sim_radius = 300.0
 scale_multiplier = 15.0
 
 _interval, _slow_interval = None, None
-simulation_speed, cps = 1.0, 0.0
+simulation_speed, cps, fps = 1.0, 0.0, 0.0
 
 def init(randomize=True, initialize_gfx=True):
     global molecules
@@ -164,21 +164,23 @@ def calc_kinetic_energy():
     return kinetic_energy
 
 def from_file_update(time_passed):
-    global molecule_positions, molecules, total_time_passed, _interval
-    total_time_passed += _interval
+    global molecule_positions, molecules, total_time_passed, _interval, time_length, intervals_passed, fps, cps
+    if total_time_passed <= time_length: total_time_passed += time_passed
+    fps = 1/time_passed
     if not molecule_positions: return
-    log("total time passed: " + str("%.4f" % total_time_passed), end="\r")
-    positions = molecule_positions.pop(0)
-    global molecule_amount
-    print(molecule_amount, len(positions))
-    for molecule in molecules:
-        position = [float(i) for i in positions.pop(0).split("x")]
-        molecule.x = position[0]
-        molecule.y = position[1]
+    log("total time passed: " + str("%.4f" % total_time_passed) + "s\t" + str("%.4f" % fps) + " FPS\t" + str("%.4f" % cps) + " CPS", end="\r")
+    if intervals_passed in molecule_positions:
+        positions = molecule_positions[intervals_passed]
+        intervals_passed = total_time_passed // _interval
+        for molecule in molecules:
+            if not positions: return
+            position = [float(i) for i in positions.pop(0).split("x")]
+            molecule.x = position[0]
+            molecule.y = position[1]
 
 def simulate_from_file(filepath):
     with open(filepath, "r") as f:
-        global molecule_amount, molecule_sim_radius, scale_multiplier
+        global molecule_amount, molecule_sim_radius, scale_multiplier, time_length
         log("loading simulation at \033[;32m" + filepath, end="\n\n")
         molecule_amount = float(f.readline()[:-1])
         interval = float(f.readline()[:-1])
@@ -191,16 +193,17 @@ def simulate_from_file(filepath):
         log("length of simulation: " + str(time_length) + "s")
 
         global molecule_positions
-        molecule_positions = []
+        molecule_positions = {}
         log("loading molecule positions...")
-        while line:=f.readline():
-            molecule_positions.append(line.split(",")[:-1])
+        while (line:=f.readline().split(":")) != ['']:
+            molecule_positions[float(line[0])] = line[1].split(",")[:-1]
         log(msg="finished loading molecule positions!", level="success")
 
 
-        global _interval, _slow_interval, _fixed_deltatime
+        global _interval, _slow_interval, _fixed_deltatime, cps
         _interval = interval
         _fixed_deltatime = True
+        cps = 1/_interval
 
         init(False)
         gfx.run(fixed_callback=from_file_update, interval=_interval)
@@ -217,17 +220,20 @@ def simulate_to_file(filepath, time_length=100, fixed_callback=update, interval=
         global molecules, molecule_amount, molecule_sim_radius, scale_multiplier
         log("simulating " + str(molecule_amount) + " molecules for " + str(time_length) + " seconds", end="\n\n")
 
+        intervals_passed = 0
         time_passed = 1
         f.write(str(molecule_amount)+"\n"+str(interval)+"\n"+str(time_length)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
 
         while time_passed <= time_length:
             progress = int((time_passed*30)//(time_length))
             log("[PROGRESS] \033[;34m" + ("▰"*progress) + "\033[;32m" + ("▱"*(30-progress)) + "\033[0;0m " + str("%.1f" % (progress/30*100)) + " %", end="\r")
+            f.write(str(intervals_passed)+":")
             for molecule in molecules:
                 f.write(str(molecule.x)+"x"+str(molecule.y)+",")
             f.write("\n")
             update(time_passed=interval, mute=True)
             time_passed += interval
+            intervals_passed += 1
 
         log("DONE!", "success", begin="\n")
         log("simulation written to \033[;32m" + filepath, "success")
@@ -251,8 +257,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="\033[;32mMOLECULAR SIMULATOR \033[;37m|\t\033[0;0m generate and simulate Van Der Waals Forces between particles")
 
 
-    parser.add_argument("-generate", "-g", action="store_true", help="generate a new simulation")
-    parser.add_argument("-load", "-l", action="store_true", help="load a generated simulation")
+    parser.add_argument("--generate", "-g", action="store_true", help="generate a new simulation")
+    parser.add_argument("--load", "-l", action="store_true", help="load a generated simulation")
 
     parser.add_argument("--filepath", "-f", dest="filepath", help="filepath to save the generated simulation to or to load the simulation from")
     parser.add_argument("--duration", "-d", dest="duration", help="duration [in seconds] of the simulation \033[;37m[\033[;33mgenerate only\033[;37m]\033[0;0m", default=20.0, type=float)
@@ -278,5 +284,6 @@ if __name__ == '__main__':
         init(args.random_start, initialize_gfx=False)
         simulate_to_file(filepath=args.filepath, time_length=args.duration, interval=args.interval)
     elif args.load:
+        intervals_passed = 0
         simulate_from_file(args.filepath)
 
