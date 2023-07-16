@@ -42,7 +42,7 @@ $ python3 simulator.py --generate --random_start --filepath /tmp/simulation --du
 ```
 INFO		| simulating 150 molecules for 10.0 seconds
 
-INFO		| [PROGRESS] ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▱ 96.7 %
+INFO        | c     100000/100000        [PROGRESS] ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰ 100.0 %      0:00:01 left
 SUCCESS		| DONE!
 SUCCESS		| simulation written to /tmp/simulation
 ```
@@ -57,7 +57,6 @@ INFO		| loading simulation at /tmp/sim2
 INFO		| molecule amount: 500.0
 INFO		| interval: 0.001s
 INFO		| length of simulation: 20.0s
-INFO		| loading molecule positions...
-SUCCESS		| finished loading molecule positions!
+INFO        | w     total time passed: 4.3645s      203.7920 FPS    1000.0000 CPS   0.9215 simulation speed         |       4359 intervals passed
 ```
 [![https://imgur.com/i6OOEyM.png](https://imgur.com/i6OOEyM.png)](https://imgur.com/i6OOEyM.png)
