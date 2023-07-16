@@ -28,6 +28,16 @@ class Circle:
         global elements
         self.shape = pg.shapes.Circle(pos[0], pos[1], radius, color=color, batch=elements)
         
+def color(color: str):
+    match color:
+        case 'magenta': return (randrange(150, 255), randrange(10, 100), randrange(150, 255))
+        case 'red': return (randrange(200, 255), randrange(10, 50), randrange(10, 50))
+        case 'yellow': return (randrange(200, 255), randrange(150, 200), randrange(10, 50))
+        case 'green': return (randrange(10, 100), randrange(150, 255), randrange(10, 50))
+        case 'blue': return (randrange(10, 70), randrange(10, 100), randrange(150, 255))
+        case 'orange': return (randrange(150, 255), randrange(50, 100), randrange(10, 50))
+        case 'rainbow': return (randrange(50, 255), randrange(50, 255), randrange(50, 255))
+
 def run(fixed_callback=None, interval:float=0.2, slow_fixed_callback=None, slow_interval=1):
     global callbacks
     callbacks.append(fixed_callback)
@@ -40,6 +50,7 @@ def run(fixed_callback=None, interval:float=0.2, slow_fixed_callback=None, slow_
 
 
 if __name__ == '__main__':
+    init()
     circles = []
     for i in range(0,50):
         circles.append(Circle(pos=(randrange(5,1075), randrange(5,695))))

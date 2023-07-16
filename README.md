@@ -34,6 +34,8 @@ options:
   --scale_factor SCALE_FACTOR, -sf SCALE_FACTOR
                         higher values reduce simulation space [generate only]
   --random_start, -r    use random starting positions for molecules [generate only]
+  --simulation_speed SIMULATION_SPEED, -sp SIMULATION_SPEED
+                        how fast the simulation should be displayed [load only]
 ```
 ##### Generating A Simulation:
 ```

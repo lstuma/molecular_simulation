@@ -15,6 +15,9 @@ scale_multiplier = 15.0
 _interval, _slow_interval = None, None
 simulation_speed, cps, fps = 1.0, 0.0, 0.0
 
+# how fast the simulation should run
+simulation_speed_factor = 1
+
 def init(randomize=True, initialize_gfx=True):
     global molecules
     molecules = []
@@ -61,8 +64,7 @@ class Molecule:
         self.velocity_x, self.velocity_y = velocity
         
         # Create graphical counterpiece
-        self.graphic = gfx.Circle(pos=(self._x * scale_multiplier, self._y * scale_multiplier), color=(randrange(50, 255), randrange(50, 255), randrange(50, 255)), radius=10*(scale_multiplier/15))
-        
+        self.graphic = gfx.Circle(pos=(self._x * scale_multiplier, self._y * scale_multiplier), color=gfx.color('blue'), radius=10*(scale_multiplier/15))
     
     @property
     def energy(self):
@@ -170,10 +172,13 @@ def load_molecule_positions(fp, current_pos, next_pos):
     return fp.readline().split(",")[:-1]
 
 def from_file_update(time_passed):
-    global molecules, total_time_passed, _interval, intervals_length, time_length, last_intervals_passed, intervals_passed, fps, cps, fp
-    if total_time_passed <= time_length: total_time_passed += time_passed
+    global molecules, total_time_passed, _interval, intervals_length, _duration, last_intervals_passed, intervals_passed, fps, cps, fp, simulation_speed, simulation_speed_factor
+    time_passed *= simulation_speed_factor
+    if total_time_passed <= _duration: total_time_passed += time_passed
     fps = 1/time_passed
-    log("\t" + "total time passed: " + "%.4f" % total_time_passed + "s\t" + "%.4f" % fps + " FPS\t" + "%.4f" % cps + " CPS\t" + "%.4f" % (_interval/time_passed) + " simulation speed \t|\t"+ str(intervals_passed) + " intervals passed", end="\r")
+    if intervals_passed % 500 == 50:
+        simulation_speed = intervals_passed*_interval/total_time_passed
+    log("\t" + "total time passed: " + "%.4f" % total_time_passed + "s\t" + "%.4f" % fps + " FPS\t" + "%.4f" % cps + " CPS\t" + "~%.4f" % simulation_speed + " simulation speed \t|\t"+ str(intervals_passed) + " intervals passed", end="\r")
     if intervals_passed < intervals_length:
         # reading
         log("r", end="\r")
@@ -191,18 +196,19 @@ def simulate_from_file(filepath):
     global fp
     fp = open(filepath, "r")
 
-    global molecule_amount, molecule_sim_radius, scale_multiplier, time_length, intervals_length
+    global molecule_amount, molecule_sim_radius, scale_multiplier, _duration, intervals_length, simulation_speed_factor
     log("loading simulation at \033[;32m" + filepath, end="\n\n")
     molecule_amount = float(fp.readline()[:-1])
     interval = float(fp.readline()[:-1])
-    time_length = float(fp.readline()[:-1])
+    _duration = float(fp.readline()[:-1])
     molecule_sim_radius = float(fp.readline()[:-1])
     scale_multiplier = float(fp.readline()[:-1])
-    intervals_length = int(time_length//interval)
+    intervals_length = int(_duration//interval)
 
     log("molecule amount: " + str(molecule_amount))
-    log("interval: " + str(interval) + "s")
-    log("length of simulation: " + str(time_length) + "s")
+    log("interval: " + str(interval) + "s " + "(%.1f Hz)" % (1/interval))
+    log("duration of simulation: " + str(_duration) + "s")
+    log("simulation speed: " + "%.2f" % simulation_speed_factor)
 
     global _interval, _slow_interval, _fixed_deltatime, cps, last_intervals_passed
     last_intervals_passed = 0
@@ -214,33 +220,35 @@ def simulate_from_file(filepath):
     gfx.run(fixed_callback=from_file_update, interval=_interval)
 
 
-def simulate_to_file(filepath, time_length=100, fixed_callback=update, interval=0.2, slow_fixed_callback=None, slow_interval=None):
+def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.2, slow_fixed_callback=None, slow_interval=None):
     if slow_fixed_callback != None or slow_interval != None:
         log("slow_fixed_callback and slow_interval are unused in simulations written to files!", "warning")
     global _interval, _slow_interval, _slow_interval, _fixed_deltatime
     _interval, _slow_interval = interval, slow_interval
     _fixed_deltatime = True
-    intervals_length = int(time_length/interval)
+    intervals_length = int(_duration/interval)
 
     real_start_time = time.time()
 
     with open(filepath, "w") as fp:
         global molecules, molecule_amount, molecule_sim_radius, scale_multiplier
-        log("simulating " + str(molecule_amount) + " molecules for " + str(time_length) + " seconds (" + str(intervals_length) + " intervals)", end="\n\n")
+        _duration_minutes, _duration_seconds = divmod(_duration, 60)
+        _duration_hours, _duration_minutes = divmod(_duration_minutes, 60)
+        log("simulating " + str(molecule_amount) + " molecules for " + "%d:%02d:%02d" % (_duration_hours, _duration_minutes, _duration_seconds) + " (" + str(intervals_length) + " intervals)", end="\n\n")
 
         intervals_passed = 1
         time_passed = 1e-10
-        fp.write(str(molecule_amount)+"\n"+str(interval)+"\n"+str(time_length)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
+        fp.write(str(molecule_amount)+"\n"+str(interval)+"\n"+str(_duration)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
 
 
         progress_prefix = (len(str(intervals_length)*2)+2)
-        while time_passed <= time_length:
+        while time_passed <= _duration:
             progress = (intervals_passed/intervals_length)*100
             real_time_passed = time.time() - real_start_time
             if intervals_passed%100 == 1:
                 _progress = progress/100
                 seconds_left = int((real_time_passed/(_progress))*(1-(_progress)))
-                minutes_left, _ = divmod(seconds_left, 60)
+                minutes_left, seconds_left = divmod(seconds_left, 60)
                 hours_left, minutes_left = divmod(minutes_left, 60)
 
             # display progress
@@ -288,6 +296,7 @@ if __name__ == '__main__':
     parser.add_argument("--sim_radius", "-sr", dest="sim_radius", help="max simulation radius regarding each molecule \033[;37m[\033[;33mgenerate only\033[;37m]\033[0;0m", default=300, type=float)
     parser.add_argument("--scale_factor", "-sf", dest="scale_factor", help="higher values reduce simulation space \033[;37m[\033[;33mgenerate only\033[;37m]\033[0;0m", default=15.0, type=float)
     parser.add_argument("--random_start", "-r", dest="random_start", help="use random starting positions for molecules \033[;37m[\033[;33mgenerate only\033[;37m]\033[0;0m", action="store_true")
+    parser.add_argument("--simulation_speed", "-sp", dest="simulation_speed", help="how fast the simulation should be displayed \033[;37m[\033[;33mload only\033[;37m]\033[0;0m", default=1.0, type=float)
 
 
     args = parser.parse_args()
@@ -297,14 +306,15 @@ if __name__ == '__main__':
     if not args.filepath:
         log("filepath required", "error")
 
-    # simulate_to_file(filepath, time_length=100, fixed_callback=update, interval=0.2, slow_fixed_callback=None, slow_interval=None):
+    # simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.2, slow_fixed_callback=None, slow_interval=None):
     if args.generate:
         molecule_amount = args.molecule_amount
         molecule_sim_radius = args.sim_radius
         scale_multiplier = args.scale_factor
         init(args.random_start, initialize_gfx=False)
-        simulate_to_file(filepath=args.filepath, time_length=args.duration, interval=args.interval)
+        simulate_to_file(filepath=args.filepath, _duration=args.duration, interval=args.interval)
     elif args.load:
         intervals_passed = 0
+        simulation_speed_factor = args.simulation_speed
         simulate_from_file(args.filepath)
 
