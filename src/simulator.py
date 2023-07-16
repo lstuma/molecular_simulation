@@ -3,6 +3,7 @@ from random import randrange
 import math
 from logger import log
 import argparse
+import time, datetime
 
 # Wether to allow lag when fps is low or compromise accuracy instead
 _fixed_deltatime = False
@@ -138,16 +139,16 @@ def update(time_passed, mute=False):
         molecule.x += molecule.velocity_x * time_passed
         molecule.y += molecule.velocity_y * time_passed
     
-    if not mute: log("total velocity: " + str("%.6f" % calc_total_velocity()) + "\t|\tkinetic energy: " + str("%.6f" % calc_kinetic_energy()) + "\t|\ttime passed: " + str("%.2f" % total_time_passed), end="", begin="\r")
+    if not mute: log("total velocity: " + "%.6f" % calc_total_velocity() + "\t|\tkinetic energy: " + "%.6f" % calc_kinetic_energy() + "\t|\ttime passed: " + "%.2f" % total_time_passed, end="", begin="\r")
     
 def slow_update(time_passed):
     global last_total_velocity, total_velocity, _fixed_deltatime, _slow_interval, cps, simulation_speed
     if _fixed_deltatime: time_passed = _slow_interval
     velocity_loss = last_total_velocity - total_velocity
     last_total_velocity = total_velocity
-    log("calculations per second: " + str("%.6f" % cps), "info" if cps >= (1/_interval)-10 else "warning", begin="\n\n")
-    log("simulation speed: " + str("%.6f" % simulation_speed), "info" if simulation_speed >= 0.9 else "warning")
-    if abs(velocity_loss) >= 10: log("kinetic difference: " + str("%.6f" % velocity_loss), "warning" if abs(velocity_loss) <= 50 else "warning2")
+    log("calculations per second: " + "%.6f" % cps, "info" if cps >= (1/_interval)-10 else "warning", begin="\n\n")
+    log("simulation speed: " + "%.6f" % simulation_speed, "info" if simulation_speed >= 0.9 else "warning")
+    if abs(velocity_loss) >= 10: log("kinetic difference: " + "%.6f" % velocity_loss, "warning" if abs(velocity_loss) <= 50 else "warning2")
     
 
 def calc_total_velocity():
@@ -163,50 +164,54 @@ def calc_kinetic_energy():
     kinetic_energy = total_velocity * molecular_mass
     return kinetic_energy
 
+def load_molecule_positions(fp, current_pos, next_pos):
+    distance = next_pos - current_pos - 1
+    for i in range(distance): fp.readline()
+    return fp.readline().split(",")[:-1]
+
 def from_file_update(time_passed):
-    global molecule_positions, molecules, total_time_passed, _interval, time_length, intervals_passed, fps, cps
+    global molecules, total_time_passed, _interval, intervals_length, time_length, last_intervals_passed, intervals_passed, fps, cps, fp
     if total_time_passed <= time_length: total_time_passed += time_passed
     fps = 1/time_passed
-    if not molecule_positions: return
-    log("total time passed: " + str("%.4f" % total_time_passed) + "s\t" + str("%.4f" % fps) + " FPS\t" + str("%.4f" % cps) + " CPS", end="\r")
-    if intervals_passed in molecule_positions:
-        positions = molecule_positions[intervals_passed]
-        intervals_passed = total_time_passed // _interval
+    log("\t" + "total time passed: " + "%.4f" % total_time_passed + "s\t" + "%.4f" % fps + " FPS\t" + "%.4f" % cps + " CPS\t" + "%.4f" % (_interval/time_passed) + " simulation speed \t|\t"+ str(intervals_passed) + " intervals passed", end="\r")
+    if intervals_passed < intervals_length:
+        # reading
+        log("r", end="\r")
+        positions = load_molecule_positions(fp, last_intervals_passed, intervals_passed)
+        last_intervals_passed = intervals_passed
+        intervals_passed = int(total_time_passed // _interval)
         for molecule in molecules:
-            if not positions: return
             position = [float(i) for i in positions.pop(0).split("x")]
+            # writing
+            log("w", end="\r")
             molecule.x = position[0]
             molecule.y = position[1]
 
 def simulate_from_file(filepath):
-    with open(filepath, "r") as f:
-        global molecule_amount, molecule_sim_radius, scale_multiplier, time_length
-        log("loading simulation at \033[;32m" + filepath, end="\n\n")
-        molecule_amount = float(f.readline()[:-1])
-        interval = float(f.readline()[:-1])
-        time_length = float(f.readline()[:-1])
-        molecule_sim_radius = float(f.readline()[:-1])
-        scale_multiplier = float(f.readline()[:-1])
+    global fp
+    fp = open(filepath, "r")
 
-        log("molecule amount: " + str(molecule_amount))
-        log("interval: " + str(interval) + "s")
-        log("length of simulation: " + str(time_length) + "s")
+    global molecule_amount, molecule_sim_radius, scale_multiplier, time_length, intervals_length
+    log("loading simulation at \033[;32m" + filepath, end="\n\n")
+    molecule_amount = float(fp.readline()[:-1])
+    interval = float(fp.readline()[:-1])
+    time_length = float(fp.readline()[:-1])
+    molecule_sim_radius = float(fp.readline()[:-1])
+    scale_multiplier = float(fp.readline()[:-1])
+    intervals_length = int(time_length//interval)
 
-        global molecule_positions
-        molecule_positions = {}
-        log("loading molecule positions...")
-        while (line:=f.readline().split(":")) != ['']:
-            molecule_positions[float(line[0])] = line[1].split(",")[:-1]
-        log(msg="finished loading molecule positions!", level="success")
+    log("molecule amount: " + str(molecule_amount))
+    log("interval: " + str(interval) + "s")
+    log("length of simulation: " + str(time_length) + "s")
 
+    global _interval, _slow_interval, _fixed_deltatime, cps, last_intervals_passed
+    last_intervals_passed = 0
+    _interval = interval
+    _fixed_deltatime = True
+    cps = 1/_interval
 
-        global _interval, _slow_interval, _fixed_deltatime, cps
-        _interval = interval
-        _fixed_deltatime = True
-        cps = 1/_interval
-
-        init(False)
-        gfx.run(fixed_callback=from_file_update, interval=_interval)
+    init(False)
+    gfx.run(fixed_callback=from_file_update, interval=_interval)
 
 
 def simulate_to_file(filepath, time_length=100, fixed_callback=update, interval=0.2, slow_fixed_callback=None, slow_interval=None):
@@ -215,22 +220,38 @@ def simulate_to_file(filepath, time_length=100, fixed_callback=update, interval=
     global _interval, _slow_interval, _slow_interval, _fixed_deltatime
     _interval, _slow_interval = interval, slow_interval
     _fixed_deltatime = True
+    intervals_length = int(time_length/interval)
 
-    with open(filepath, "w") as f:
+    real_start_time = time.time()
+
+    with open(filepath, "w") as fp:
         global molecules, molecule_amount, molecule_sim_radius, scale_multiplier
-        log("simulating " + str(molecule_amount) + " molecules for " + str(time_length) + " seconds", end="\n\n")
+        log("simulating " + str(molecule_amount) + " molecules for " + str(time_length) + " seconds (" + str(intervals_length) + " intervals)", end="\n\n")
 
-        intervals_passed = 0
-        time_passed = 1
-        f.write(str(molecule_amount)+"\n"+str(interval)+"\n"+str(time_length)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
+        intervals_passed = 1
+        time_passed = 1e-10
+        fp.write(str(molecule_amount)+"\n"+str(interval)+"\n"+str(time_length)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
 
+
+        progress_prefix = (len(str(intervals_length)*2)+2)
         while time_passed <= time_length:
-            progress = int((time_passed*30)//(time_length))
-            log("[PROGRESS] \033[;34m" + ("▰"*progress) + "\033[;32m" + ("▱"*(30-progress)) + "\033[0;0m " + str("%.1f" % (progress/30*100)) + " %", end="\r")
-            f.write(str(intervals_passed)+":")
+            progress = (intervals_passed/intervals_length)*100
+            real_time_passed = time.time() - real_start_time
+            if intervals_passed%100 == 1:
+                _progress = progress/100
+                seconds_left = int((real_time_passed/(_progress))*(1-(_progress)))
+                minutes_left, _ = divmod(seconds_left, 60)
+                hours_left, minutes_left = divmod(minutes_left, 60)
+
+            # display progress
+            log("\t" + str(intervals_passed) + "/" + str(intervals_length) + ' '*(progress_prefix-int(len(str(intervals_passed)))) + "[PROGRESS] \033[;34m" + ("▰"*int(progress/2)) + "\033[;32m" + ("▱"*(50-int(progress/2))) + "\033[0;0m " + "%.1f" % progress + " %\t" + "%d:%02d:%02d" % (hours_left, minutes_left, seconds_left) + " left     ", end="\r")
+
+            # writing
+            log("w", end="\r")
             for molecule in molecules:
-                f.write(str(molecule.x)+"x"+str(molecule.y)+",")
-            f.write("\n")
+                fp.write(str(molecule.x)+"x"+str(molecule.y)+",")
+            fp.write("\n")
+            log("c", end="\r")
             update(time_passed=interval, mute=True)
             time_passed += interval
             intervals_passed += 1
