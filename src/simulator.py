@@ -64,7 +64,7 @@ class Molecule:
         self.velocity_x, self.velocity_y = velocity
         
         # Create graphical counterpiece
-        self.graphic = gfx.Circle(pos=(self._x * scale_multiplier, self._y * scale_multiplier), color=gfx.color('blue'), radius=10*(scale_multiplier/15))
+        self.graphic = gfx.Circle(pos=(self._x * scale_multiplier, self._y * scale_multiplier), color=gfx.color('rainbow'), radius=10*(scale_multiplier/15))
     
     @property
     def energy(self):
