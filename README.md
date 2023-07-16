@@ -1,4 +1,4 @@
-# molecular_simulation
+# Molecular Simulation
 
 ## Usage
 ### Using GUI
