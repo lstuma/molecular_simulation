@@ -6,8 +6,8 @@
 #include <omp.h>
 
 // constants needed for energy calculation
-ε = -997.1;
-σ = 3.401;
+const int ε = -997.1;
+const int σ = 3.401;
 
 typedef struct {
     float x;
@@ -29,10 +29,10 @@ Atom* atoms = NULL;
 int workers = 3;
 
 
-void init_atoms(_atomcount)
+void init_atoms(int _atomcount)
 {
     // set atomcount to actual value
-    atomcount = _atomcount
+    atomcount = _atomcount;
     
     // initialize array with atoms
     atoms = (Atom*)malloc(_atomcount * sizeof(Atom));
@@ -60,20 +60,6 @@ void reset_velocity_all()
     return;
 }
 
-void compute_atom(i)
-{
-    for(int j = i+1; j < atomcount; j++)
-    {
-        Vec2 force = compute_interaction(atoms[i].pos, atoms[j].pos)  
-
-        atoms[i].velocity.x += force.x
-        atoms[i].velocity.y += force.y
-        
-        atoms[j].velocity.x -= force.x
-        atoms[j].velocity.y -= force.y
-    }
-}
-
 
 Vec2 compute_interaction(Vec2 pos1, Vec2 pos2)
 {
@@ -84,20 +70,36 @@ Vec2 compute_interaction(Vec2 pos1, Vec2 pos2)
 
     // calc direction
     Vec2 dir;
-    dir.x = offset-x/(fabsf(offset.x)+1e-6);
-    dir.x = offset-x/(fabsf(offset.x)+1e-6);
+    dir.x = offset.x/(fabsf(offset.x)+1e-6);
+    dir.x = offset.x/(fabsf(offset.x)+1e-6);
     
     // calc distance
     float distance = sqrt(offset.x*offset.x + offset.y*offset.y);
     
     // calc energy
-    float energy = 4 * ε * powf(σ / (distance+1e-20), 12) - powf(σ / (distance+1e-20), 6));
+    float energy = 4 * ε * (powf(σ / (distance+1e-20), 12) - powf(σ / (distance+1e-20), 6));
     
     Vec2 force;
     force.x = dir.x * energy;
     force.y = dir.y * energy;
     return force;
 }
+
+
+void compute_atom(int i)
+{
+    for(int j = i+1; j < atomcount; j++)
+    {
+    Vec2 force = compute_interaction(atoms[i].pos, atoms[j].pos);
+
+        atoms[i].velocity.x += force.x;
+        atoms[i].velocity.y += force.y;
+
+        atoms[j].velocity.x -= force.x;
+        atoms[j].velocity.y -= force.y;
+    }
+}
+
 
 void generate(char* filepath, float duration, float interval, int molecule_amount, float sim_radius, bool random_start)
 {
