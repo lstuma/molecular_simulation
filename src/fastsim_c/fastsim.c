@@ -101,15 +101,55 @@ void compute_atom(int i)
 }
 
 
-void generate(char* filepath, float duration, float interval, int molecule_amount, float sim_radius, bool random_start)
+void update(float time_passed)
 {
-    printf("%s\n", filepath);
+    reset_velocity_all();
+
+    for(int i = 0; i < atomcount; i++)
+    {
+        compute_atom(i);
+        atoms[i].pos.x += atoms[i].velocity.x * time_passed;
+        atoms[i].pos.y += atoms[i].velocity.y * time_passed;
+    }
+}
+
+
+void generate(char* filepath, float duration, float interval, int atomcount, bool random_start, int fps)
+{
+    // initialize atom array
+    init_atoms(atomcount);
+
+    // amount of intervals that will be run
+    int intervals_duration = (int)(duration/interval);
+    // intervals per frame
+    int ipf = (int)((1.0/fps)/interval);
+    if(ipf<=10) printf("\n\033[31mERROR \033[0m| <= 1 IPF (HIGHLY UNSTABLE) -> PLEASE CHOOSE LOWER INTERVAL!");
+
+    // progress (0% to 100%)
+    float progress = 0.0;
+
+    for(int intervals_passed = 0; intervals_passed < intervals_duration; intervals_passed++)
+    {
+        if(intervals_passed%ipf==0)
+        {
+            //write(atoms);
+        }
+
+        update(interval);
+
+        progress = intervals_passed/intervals_duration;
+
+        intervals_passed += 1;
+        printf("%d, ", intervals_passed);
+    }
+    printf("\nDONE!");
+
     return;
 }
 
 int main(int argc, char** kwargs)
 {
-    printf("Hello World!\n");
-    generate("/home/sdoxl/programming/projects/molecular_simulation/simuations/C_sim1", 10.0, 0.001, 10, 20, true);
+    printf("\nHello World!");
+    generate("\n/home/sdoxl/programming/projects/molecular_simulation/simuations/C_sim1", 10.0, 0.001, 20, true, 60);
     return 0;
 }

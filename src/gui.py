@@ -40,11 +40,11 @@ def gui():
     molecule_amount_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="MOLECULE AMOUNT [50]", font=ctk.CTkFont(family="Tahoma", weight="bold"))
     molecule_amount_label.place(x=320, y=20)
     
-    fixed_update_interval_slider = ctk.CTkSlider(master=main_frame, width=300, height=20, number_of_steps=30, command=fixed_update_interval_slider_callback, from_=0.01, to=1)
+    fixed_update_interval_slider = ctk.CTkSlider(master=main_frame, width=300, height=20, number_of_steps=60, command=fixed_update_interval_slider_callback, from_=0.01, to=10)
     fixed_update_interval_slider.place(x=20, y=50)
-    fixed_update_interval_slider.set(0.002)
+    fixed_update_interval_slider.set(1)
     global fixed_update_interval_label
-    fixed_update_interval_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="UPDATE INTERVAL [0.002]", font=ctk.CTkFont(family="Tahoma", weight="bold"))
+    fixed_update_interval_label = ctk.CTkLabel(master=main_frame, width=200, height=20, text="UPDATE INTERVAL [1 fs]", font=ctk.CTkFont(family="Tahoma", weight="bold"))
     fixed_update_interval_label.place(x=320, y=50)
     
     global randomize_switch
@@ -96,8 +96,8 @@ def molecule_amount_slider_callback(value):
     
 def fixed_update_interval_slider_callback(value):
     global fixed_update_interval_label, fixed_update_interval
-    fixed_update_interval = round(value**2, 4)
-    fixed_update_interval_label.configure(text="UPDATE INTERVAL ["+str(round(value**2, 4))+"]")
+    fixed_update_interval = round(value**2, 12)*1e-15
+    fixed_update_interval_label.configure(text="UPDATE INTERVAL ["+str(round(value**2, 12))+" fs]")
     
 def simulation_radius_slider_callback(value):
     global simulation_radius_label
