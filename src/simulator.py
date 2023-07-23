@@ -279,7 +279,7 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
         fast_simulator.init_atoms(molecules)
 
         # leapfrog
-        fast_simulator.lf_init(interval)
+        fast_simulator.lf_init_parallel(interval)
 
         intervals_passed = 1
         time_passed = 1e-10
@@ -300,12 +300,14 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
                 hours_left, minutes_left = divmod(minutes_left, 60)
 
             if intervals_passed%intervals_per_frame == 1:
-                for molecule in molecules:
-                    fp.write(str(molecule.x)+"x"+str(molecule.y)+",")
+                for atom in fast_simulator.shared_atoms:
+                    fp.write(str(atom[0][0])+"x"+str(atom[0][1])+",")
                 fp.write("\n")
 
+
             # calculate new pos + velocity
-            fast_simulator.lf_update()
+            fast_simulator.lf_update_parallel()
+
 
             # every 100 intervals slow_update is called
             if intervals_passed%100 == 0:
@@ -315,13 +317,15 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
                     log(str(intervals_passed) + "/" + str(intervals_length))
                     log("[PROGRESS] \033[;34m" + ("▰"*int(progress/2)) + "\033[;32m" + ("▱"*(50-int(progress/2))) + "\033[0;0m " + "%.1f" % progress + " %")
                     log("%d:%02d:%02d" % (hours_left, minutes_left, seconds_left) + " left     ")
-                    log('[START] %.4f KJ/mol' % fast_simulator.start_total_energy + '\t[NOW] %.4f KJ/mol' % fast_simulator.total_energy, level='warning')
+                    log('[START] %.4f KJ/mol' % fast_simulator.start_total_energy, level='warning')
+                    log('[NOW] %.4f KJ/mol' % fast_simulator.total_energy, level='warning')
                     log('energy diff: ' + '%.4f' % fast_simulator.total_energy_diff + ' (' + choice(['/', '|', '\\', '-']) + ')')
-                    log_up(4)
+                    log_up(5)
 
             time_passed += interval
             intervals_passed += 1
 
+        fast_simulator.lf_close_parallel()
         log("DONE!", "success", begin="\n\n")
         log("simulation written to \033[;32m" + filepath, "success")
 
