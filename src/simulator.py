@@ -261,7 +261,6 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
 
         # calculating properties to get real_ftps as well as intervals_per_frame
         seconds_per_frame = 1.0/simulation_fps_save
-        real_time_passed = time.time() - real_start_time
         intervals_per_frame, _ = divmod(seconds_per_frame, interval)
         intervals_per_frame = int(intervals_per_frame)
         # fps that can be hit with set interval
@@ -279,15 +278,23 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
         # speeeeeeeed
         fast_simulator.init_atoms(molecules)
 
+        # leapfrog
+        fast_simulator.lf_init(interval)
+
         intervals_passed = 1
         time_passed = 1e-10
         fp.write(str(molecule_amount)+"\n"+str(seconds_per_frame)+"\n"+str(_duration)+"\n"+str(molecule_sim_radius)+"\n"+str(scale_multiplier)+"\n")
+
+        # estimate
+        seconds_left, minutes_left, hours_left, real_time_passed = 0, 0, 0, 0
 
         while time_passed <= _duration:
             if intervals_passed%100 == 1:
                 progress = (intervals_passed/intervals_length)*100
                 _progress = progress/100
 
+                # estimate
+                real_time_passed = time.time() - real_start_time
                 seconds_left = int((real_time_passed/(_progress))*(1-(_progress)))
                 minutes_left, seconds_left = divmod(seconds_left, 60)
                 hours_left, minutes_left = divmod(minutes_left, 60)
@@ -297,10 +304,8 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
                     fp.write(str(molecule.x)+"x"+str(molecule.y)+",")
                 fp.write("\n")
 
-            # to slow
-            #update(time_passed=interval, mute=True)
-
-            fast_simulator.update(time_passed)
+            # calculate new pos + velocity
+            fast_simulator.lf_update()
 
             # every 100 intervals slow_update is called
             if intervals_passed%100 == 0:
@@ -310,7 +315,7 @@ def simulate_to_file(filepath, _duration=100, fixed_callback=update, interval=0.
                     log(str(intervals_passed) + "/" + str(intervals_length))
                     log("[PROGRESS] \033[;34m" + ("▰"*int(progress/2)) + "\033[;32m" + ("▱"*(50-int(progress/2))) + "\033[0;0m " + "%.1f" % progress + " %")
                     log("%d:%02d:%02d" % (hours_left, minutes_left, seconds_left) + " left     ")
-                    log('%.4f' % fast_simulator.start_total_energy + ' / ' + '%.4f' % fast_simulator.total_energy, level='warning')
+                    log('[START] %.4f KJ/mol' % fast_simulator.start_total_energy + '\t[NOW] %.4f KJ/mol' % fast_simulator.total_energy, level='warning')
                     log('energy diff: ' + '%.4f' % fast_simulator.total_energy_diff + ' (' + choice(['/', '|', '\\', '-']) + ')')
                     log_up(4)
 

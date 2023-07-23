@@ -5,10 +5,14 @@ import numpy as np
 ε: float = -997.1       # emin
 σ: float = 3.401        # rmin
 mass: float = 39.948    # mass
+Θ6 = 48*ε*(σ**6)
+Θ12 = 48*ε*(σ**12)
 
 atomcount = 0
 atoms = None
 atom_ids = None
+# list of distances between atoms
+atom_pairs = None
 
 
 # tweak as necessary (number of processes)
@@ -19,11 +23,13 @@ start_total_energy = None
 total_energy_diff = None
 
 def init_atoms(atoms_list):
-    global atom_ids, atomcount, atoms
+    global atom_ids, atomcount, atoms, atom_pairs
     
     atomcount = len(atoms_list)
     atoms = np.array((atoms_list))
     atom_ids = np.array([i for i in range(atomcount)])
+
+    atom_pairs = np.zeros((atomcount, atomcount))
 
 
 def reset_velocity_all():
@@ -44,48 +50,50 @@ def calc_total_energy():
     for i, atom in enumerate(atoms):
         for other_atom in atoms[i+1:]:
             total_energy += calc_Epot(np.linalg.norm(atom.pos - other_atom.pos)+1e-16)
-        total_energy += atom.velocity.sum()/mass
+        total_energy += atom.velocity.sum()*mass
 
     return total_energy
 
 
 
-def calc_atom_velocity(id, time_passed):
-    global atomcount, atoms
+def calc_atom_velocity(id):
+    global atomcount, atoms, atom_pairs
 
     for other_id in range(id+1, atomcount):
-        acceleration, distance = calc_acceleration(atoms[id].pos, atoms[other_id].pos)
+        acceleration, r = calc_acceleration_lazy(atoms[id].pos, atoms[other_id].pos)
+        Δr = atom_pairs[id, other_id] - r
+        atom_pairs[id, other_id] = r
         # add force to velocity
-        atoms[id].velocity += acceleration * time_passed
-        atoms[other_id].velocity -= acceleration  * time_passed
+        atoms[id].velocity += acceleration * Δr
+        atoms[other_id].velocity -= acceleration  * Δr
 
 def calc_acceleration(pos1: np.array, pos2: np.array):
     global ε, σ
 
     offset = pos1-pos2
     dir = np.array((offset/(abs(offset)+1e-6)))
-    distance = np.linalg.norm(pos1 - pos2)+1e-16
-    tmp = (σ/distance)
+    r = np.linalg.norm(pos1 - pos2)+1e-16
+    tmp = (σ/r)
     tmp6 = tmp**6
     tmp12 = tmp6*tmp6
 
-    ΔEpot = 4*ε * ( - 12*(tmp12 / distance) + 12*(tmp6 / distance) )
+    ΔEpot = 4*ε * ( - 12*(tmp12 / r) + 12*(tmp6 / r) )
     acceleration = (-ΔEpot/mass) * dir
-    return acceleration, distance
+    return acceleration, r
 
 def calc_acceleration_lazy(pos1: np.array, pos2: np.array):
     global ε, σ
 
     offset = pos1-pos2
     dir = np.array((offset/(abs(offset)+1e-6)))
-    distance = np.linalg.norm(pos1 - pos2)+1e-16
-    tmp = (σ/distance)
-    tmp6 = tmp**6
-    tmp12 = tmp6*tmp6
+    r = np.linalg.norm(pos1 - pos2)+1e-16
+    r6 = r**6
+    r7 = r6*r
+    r13 = r6*r6
 
-    ΔEpot = 4*ε * ( - 12*(tmp12 / distance) + 12*(tmp6 / distance) )
-    acceleration = (-ΔE1pot/mass) * dir
-    return acceleration, distance
+    ΔEpot = (Θ6 / r7) - (Θ12 / r13)
+    acceleration = (-ΔEpot/mass) * dir
+    return acceleration, r
 
 def calc_Epot(r):
     global ε, σ
@@ -100,13 +108,15 @@ def calc_Epot(r):
 def update(time_passed):
     global atom_ids, atoms
     
-    # calc forces using multiprocessing
-    for i in range(atomcount):
-        calc_atom_velocity(i, time_passed)
-
     # update atom positions
     for atom in atoms:
         atom.update_pos(atom.velocity * time_passed)
+
+
+    # calc forces using multiprocessing
+    for i in range(atomcount):
+        calc_atom_velocity(i)
+
     return
 
 def slow_update():
@@ -117,11 +127,12 @@ def slow_update():
         start_total_energy = calc_total_energy()
 
     # get difference in energy
-    total_energy_diff = start_total_energy / calc_total_energy()
+    total_energy_diff = calc_total_energy() / start_total_energy
 
     # set total energy back to start total energy
+    reversed_total_energy_diff = start_total_energy/total_energy
     for atom in atoms:
-        atom.velocity *= total_energy_diff
+        atom.velocity *= reversed_total_energy_diff
 
 #
 # leapfrog
@@ -133,16 +144,15 @@ def lf_init(step):
 
     # velocity half step update
     for id in range(atomcount):
-        calc_atom_velocity(id, step/2.0)
+        calc_atom_velocity(id)
 
-def lf_update(step):
-    global atomcount, atoms
-
-    # velocity full step update
-    for id in range(atomcount):
-        calc_atom_velocity(id, step/2.0)
-
+def lf_update():
+    global atomcount, atoms, lf_step
 
     # position full step update
     for atom in atoms:
-        atom.update_pos(atom.velocity * time_passed)
+        atom.update_pos(atom.velocity * lf_step)
+
+    # velocity full step update
+    for id in range(atomcount):
+        calc_atom_velocity(id)
