@@ -6,8 +6,13 @@
 #include <omp.h>
 
 // constants needed for energy calculation
-const int ε = -997.1;
-const int σ = 3.401;
+const double ε = -997.1;
+const double σ = 3.401;
+
+const double mass = 39.948    // mass
+const double Θ6 = 48*ε*powf(σ,6);
+const double Θ12 = 48*ε*powf(σ,12):
+
 
 typedef struct {
     float x;
@@ -24,6 +29,8 @@ int atomcount = 0;
 
 // array containing all atoms
 Atom* atoms = NULL;
+
+double** atom_pairs = NULL;
 
 // amount of threads
 int workers = 3;
@@ -45,28 +52,23 @@ void init_atoms(int _atomcount)
         atoms[i].velocity.y = 0.0;
     }
 
-    return;
-}
+    // initialize array with atom distances
+    atom_pairs = (double**)malloc(_atomcount*sizeof(double*)+_atomcount*sizeof(double));
 
-void reset_velocity_all()
-{
-    // go through all atoms and set velocity to zero for later recalculation of forces
-    for(int i = 0; i < atomcount; i++)
-    {
-        atoms[i].velocity.x = 0;
-        atoms[i].velocity.y = 0;
-    }
+    for(int i = 0; i < _atomcount; i++)
+        for(int j = 0; j < _atomcount; j++)
+            atom_pairs[i][j] = 0.0;
+
 
     return;
 }
 
-
-Vec2 compute_interaction(Vec2 pos1, Vec2 pos2)
+Vec2 compute_interaction(int id1, int id2)
 {
     // calc position offset between atoms
     Vec2 offset;
-    offset.x = pos1.x-pos2.x;
-    offset.y = pos1.y-pos2.y;
+    offset.x = atoms[id1].pos.x-atoms[id2].pos.x;
+    offset.y = atoms[id1].pos.y-atoms[id2].pos.y;
 
     // calc direction
     Vec2 dir;
@@ -74,15 +76,19 @@ Vec2 compute_interaction(Vec2 pos1, Vec2 pos2)
     dir.x = offset.x/(fabsf(offset.x)+1e-6);
     
     // calc distance
-    float distance = sqrt(offset.x*offset.x + offset.y*offset.y);
-    
+    double r = sqrt(offset.x*offset.x + offset.y*offset.y);
+    atom_pairs[id1][id2] = r;
+    double r6 = powf(r, 6);
+
+
     // calc energy
-    float energy = 4 * ε * (powf(σ / (distance+1e-20), 12) - powf(σ / (distance+1e-20), 6));
-    
-    Vec2 force;
-    force.x = dir.x * energy;
-    force.y = dir.y * energy;
-    return force;
+    double ΔEpot = (Θ6 / (r6*r)) - (Θ12 / (r6*r6));
+    double acceleration = (-ΔEpot/mass);
+
+    Vec2 acceleration_vec;
+    acceleration_vec.x = dir.x * ΔEpot;
+    acceleration_vec.y = dir.y * ΔEpot;
+    return acceleration_vec;
 }
 
 
@@ -90,13 +96,21 @@ void compute_atom(int i)
 {
     for(int j = i+1; j < atomcount; j++)
     {
-    Vec2 force = compute_interaction(atoms[i].pos, atoms[j].pos);
+        double Δr = atom_pairs[i][j];
 
-        atoms[i].velocity.x += force.x;
-        atoms[i].velocity.y += force.y;
+        Vec2 Δv = compute_interaction(i, j);
 
-        atoms[j].velocity.x -= force.x;
-        atoms[j].velocity.y -= force.y;
+        Δr -= atom_pairs[i][j];
+
+        // calculate velocity change
+        Δv.x *= Δr;
+        Δv.y *= Δr;
+
+        atoms[i].velocity.x += Δv.x;
+        atoms[i].velocity.y += Δv.y;
+
+        atoms[j].velocity.x -= Δv.x;
+        atoms[j].velocity.y -= Δv.y;
     }
 }
 
