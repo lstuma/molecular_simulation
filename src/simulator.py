@@ -223,7 +223,7 @@ def simulate_from_file(filepath):
 
     global molecule_amount, molecule_sim_radius, scale_multiplier, _duration, intervals_length, simulation_speed_factor, verbose
     log("loading simulation at \033[;32m" + filepath, end="\n\n")
-    molecule_amount = float(fp.readline()[:-1])
+    molecule_amount = int(fp.readline()[:-1])
     interval = float(fp.readline()[:-1])
     _duration = float(fp.readline()[:-1])
     molecule_sim_radius = float(fp.readline()[:-1])
@@ -241,7 +241,7 @@ def simulate_from_file(filepath):
     _fixed_deltatime = True
     cps = 1/_interval
 
-    init(False)
+    init()
     gfx.run(fixed_callback=from_file_update, interval=_interval)
 
 
