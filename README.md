@@ -1,4 +1,4 @@
-# molecular_simulation
+# Molecular Simulation
 
 ## Usage
 ### Using GUI
@@ -42,9 +42,9 @@ options:
 $ python3 simulator.py --generate --random_start --filepath /tmp/simulation --duration 10 --interval 0.0001 --molecule_amount 150
 ```
 ```
-INFO		| simulating 150 molecules for 10.0 seconds
+INFO		  | simulating 150 molecules for 10.0 seconds
 
-INFO        | c     100000/100000        [PROGRESS] ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰ 100.0 %      0:00:01 left
+INFO      | c     100000/100000        [PROGRESS] ▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰▰ 100.0 %      0:00:01 left
 SUCCESS		| DONE!
 SUCCESS		| simulation written to /tmp/simulation
 ```
@@ -59,6 +59,6 @@ INFO		| loading simulation at /tmp/sim2
 INFO		| molecule amount: 500.0
 INFO		| interval: 0.001s
 INFO		| length of simulation: 20.0s
-INFO        | w     total time passed: 4.3645s      203.7920 FPS    1000.0000 CPS   0.9215 simulation speed         |       4359 intervals passed
+INFO    | w     total time passed: 4.3645s      203.7920 FPS    1000.0000 CPS   0.9215 simulation speed         |       4359 intervals passed
 ```
 [![https://imgur.com/i6OOEyM.png](https://imgur.com/i6OOEyM.png)](https://imgur.com/i6OOEyM.png)
